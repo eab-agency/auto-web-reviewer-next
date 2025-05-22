@@ -1,4 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Auto Web Reviewer
+
+An automated quality assurance tool for web projects. This application performs comprehensive checks on different types of web projects using Puppeteer for headless browser testing.
+
+## Overview
+
+Auto Web Reviewer is a Next.js web application designed to automate quality assurance checks on different types of web projects. It uses Puppeteer to run headless browser tests against specified websites, providing detailed reports on compliance with various quality standards and best practices.
+
+## Key Features
+
+1. **Multi-Project Type Support**
+
+   - **SJ (Student Journey)**: Validates specific requirements for student journey websites
+   - **PS (Paid Search)**: Tests paid search landing pages and forms
+   - **DIQ (Demonstrated Interest Questionnaire)**: Verifies DIQ pages with term-specific requirements
+
+2. **Comprehensive QA Checks**
+
+   - Accessibility checks (skip-to-content links)
+   - Form attribute validation
+   - Proper form ID implementation
+   - Search engine indexing configuration
+   - Performance optimization (lazy loading for videos)
+   - URL structure verification
+   - Hidden field validation
+   - Link target attribute verification
+   - Page speed insights integration
+
+3. **Real-time Feedback**: Outputs test results in real-time as each check is completed
+
+## Technical Architecture
+
+### Frontend (Next.js)
+
+The application features a user-friendly form interface where users can:
+
+- Input an Acquia URL to test
+- Select a project type (SJ, PS, DIQ)
+- Provide additional parameters for DIQ projects (year and term)
+- Submit the form to initiate the automated review
+
+### Backend (API Routes)
+
+- `/api/review/route.ts`: Main endpoint that processes review requests
+- `/api/detect-type/route.ts`: Helps determine the project type based on URL patterns
+
+### Puppeteer Test Engine
+
+The core testing logic is organized into modular components:
+
+1. **Runners**:
+
+   - `puppeteer-checklist.js`: Main orchestrator that selects and executes the appropriate checklist
+   - Project-specific checklists: `sj-checklist.js`, `ps-checklist.js`, `diq-checklist.js`
+
+2. **Check Modules**:
+   - Shared checks (`/checks/shared/`): Common tests used across project types
+   - Project-specific checks: Specialized tests for each project type
+
+## Workflow
+
+1. User enters a URL and selects project type in the UI
+2. The application sends this data to the API endpoint
+3. The API initializes the appropriate checklist with environment variables
+4. Puppeteer opens a headless browser and runs the selected checklist
+5. Each checklist navigates to relevant pages and runs specific tests
+6. Test results are displayed in real-time in the console/UI
+7. A comprehensive report is provided after all checks are complete
 
 ## Getting Started
 
@@ -13,24 +80,3 @@ pnpm dev
 # or
 bun dev
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
