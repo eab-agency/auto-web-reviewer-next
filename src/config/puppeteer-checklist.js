@@ -1,7 +1,16 @@
 // Import dependencies
 import { exec } from "child_process";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+// Setup environment variables
 dotenv.config();
+
+// Helper for ESM __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Use a function to allow importing this in the API
 export const runChecklist = (projectType, options = {}) => {
@@ -15,11 +24,11 @@ export const runChecklist = (projectType, options = {}) => {
 
     console.log(`🚀 Running checklist for project type: ${projectType}`);
 
-    // Map project types to their respective script paths
+    // Map project types to their respective script paths - using path.join for better cross-platform compatibility
     const scriptMap = {
-      SJ: "./src/config/sj-checklist.js",
-      PS: "./src/config/ps-checklist.js",
-      DIQ: "./src/config/diq-checklist.js",
+      SJ: path.join(__dirname, "sj-checklist.js"),
+      PS: path.join(__dirname, "ps-checklist.js"),
+      DIQ: path.join(__dirname, "diq-checklist.js"),
     };
 
     // Set environment variables for the scripts to use
@@ -57,11 +66,10 @@ export const runChecklist = (projectType, options = {}) => {
   });
 };
 
-// Export the function for use in other modules
-module.exports = { runChecklist };
+// ESM version of checking if file is run directly
+const isMainModule = process.argv[1] === fileURLToPath(import.meta.url);
 
-// If this file is run directly, execute with environment variables
-if (require.main === module) {
+if (isMainModule) {
   const projectType = process.env.CURRENT_PROJECT;
 
   runChecklist(projectType)

@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Treat these modules as external dependencies without bundling
+  serverExternalPackages: ["puppeteer"],
 };
 
 export default nextConfig;
