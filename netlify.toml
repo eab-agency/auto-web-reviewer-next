@@ -1,15 +1,22 @@
-# Netlify configuration for Next.js
+# Netlify configuration for Next.js with Puppeteer support
 [build]
   command = "npm run build"
   publish = ".next"
   
+[build.environment]
+  # Skip downloading Chromium in puppeteer since we use @sparticuz/chromium
+  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
+  NEXT_TELEMETRY_DISABLED = "1"
+
 # Handle Next.js routing - for client-side navigation
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# For Next.js API routes and Server Components
+# For Next.js API routes, Server Components, and Netlify Functions
 [functions]
-  directory = ".netlify/functions"
+  directory = "netlify/functions"
   included_files = [".next/server/**"]
+  node_bundler = "esbuild"
+  external_node_modules = ["@sparticuz/chromium"]

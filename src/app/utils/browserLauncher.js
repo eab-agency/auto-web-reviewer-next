@@ -14,7 +14,6 @@ export const launchBrowser = async (options = {}) => {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
-        "--single-process",
       ],
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
@@ -22,10 +21,41 @@ export const launchBrowser = async (options = {}) => {
       ...options,
     });
   } else {
-    // Development: Use regular puppeteer
-    const puppeteerRegular = await import("puppeteer");
-    return await puppeteerRegular.default.launch({
+    // Development: Use puppeteer-core with local Chrome
+
+    // Get the Chrome/Chromium executable path based on the operating system
+    const executablePath = (() => {
+      // Check if path is provided in options
+      if (options.executablePath) return options.executablePath;
+
+      const platform = process.platform;
+
+      if (platform === "darwin") {
+        // macOS
+        return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+      } else if (platform === "win32") {
+        // Windows
+        return "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+      } else if (platform === "linux") {
+        // Linux
+        return "/usr/bin/google-chrome";
+      } else {
+        console.warn(
+          `Unsupported platform: ${platform}, Chrome executable path must be specified manually`
+        );
+        return null;
+      }
+    })();
+
+    if (!executablePath) {
+      throw new Error(
+        "Chrome executable not found. Please specify executablePath in options."
+      );
+    }
+
+    return await puppeteer.launch({
       headless: true,
+      executablePath,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
