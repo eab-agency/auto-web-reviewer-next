@@ -1,5 +1,4 @@
 // Import dependencies
-import puppeteer from "puppeteer";
 import dotenv from "dotenv";
 import { searchIndexOff } from "./checks/shared/searchIndexOff.js";
 import { checkUnsureDropdown } from "./checks/shared/unsureDropdown.js";
@@ -10,6 +9,11 @@ import { checkGuideThanksPDF } from "./checks/sj/checkPDFStream.js";
 import { pagespeedCheck } from "./checks/shared/pageSpeedCheck.js";
 import { lazyVideoCheck } from "./checks/shared/lazyVideo.js";
 import { fileURLToPath } from "url";
+import {
+  launchBrowser,
+  createPage,
+  closeBrowser,
+} from "@/app/utils/browserLauncher.js";
 
 dotenv.config();
 
@@ -25,51 +29,59 @@ const runSJChecklist = async () => {
   baseUrl = baseUrl.replace(/\/page-index$/, "");
 
   console.log("🚀 Running SJ checklist...");
-  const browser = await puppeteer.launch({ headless: true });
-  const page = await browser.newPage();
 
-  // Example of how to get the page content after navigating to a URL
-  // await page.goto("https://example.com");
-  // const pageContent = await page.content();
-  // console.log("Page HTML:", pageContent.substring(0, 500) + "..."); // Show first 500 chars
+  let browser = null;
 
-  const sjPagePatterns = [
-    "apply",
-    "guide",
-    "guide-thanks",
-    "request",
-    "request-thanks",
-    "explore",
-    "not-ready",
-  ];
+  try {
+    // Launch browser using the shared launcher
+    browser = await launchBrowser();
+    const page = await createPage(browser);
 
-  // Construct full SJ page URLs
-  let sjLinks = sjPagePatterns.map((pattern) => `${baseUrl}/${pattern}`);
+    const sjPagePatterns = [
+      "apply",
+      "guide",
+      "guide-thanks",
+      "request",
+      "request-thanks",
+      "explore",
+      "not-ready",
+    ];
 
-  console.log(`Checked Base URL: ${baseUrl}\n\n### SJ Page Verification\n`);
-  for (const link of sjLinks) {
-    try {
-      console.log(`\n===========================================`);
-      console.log(`Checking: ${link}`);
-      console.log(`===========================================\n`);
+    // Construct full SJ page URLs
+    let sjLinks = sjPagePatterns.map((pattern) => `${baseUrl}/${pattern}`);
 
-      await page.goto(link, { waitUntil: "domcontentloaded" });
+    console.log(`Checked Base URL: ${baseUrl}\n\n### SJ Page Verification\n`);
+    for (const link of sjLinks) {
+      try {
+        console.log(`\n===========================================`);
+        console.log(`Checking: ${link}`);
+        console.log(`===========================================\n`);
 
-      await checkSkipToContent(page, link);
-      await checkUnsureDropdown(page, link);
-      await checkFormAttribution(page, link);
-      await linksOpenInNewTab(page, link);
-      await checkGuideThanksPDF(page, link);
-      await searchIndexOff(page, link);
-      await lazyVideoCheck(page, link);
-      await pagespeedCheck(page, link);
-    } catch (error) {
-      console.error(`❌ Error accessing ${link}:`, error.message);
+        await page.goto(link, {
+          waitUntil: "domcontentloaded",
+          timeout: 30000,
+        });
+
+        await checkSkipToContent(page, link);
+        await checkUnsureDropdown(page, link);
+        await checkFormAttribution(page, link);
+        await linksOpenInNewTab(page, link);
+        await checkGuideThanksPDF(page, link);
+        await searchIndexOff(page, link);
+        await lazyVideoCheck(page, link);
+        await pagespeedCheck(page, link);
+      } catch (error) {
+        console.error(`❌ Error accessing ${link}:`, error.message);
+      }
     }
-  }
 
-  console.log("✅ SJ checklist complete.");
-  await browser.close();
+    console.log("✅ SJ checklist complete.");
+  } catch (error) {
+    console.error("❌ SJ checklist failed:", error.message);
+    throw error;
+  } finally {
+    await closeBrowser(browser);
+  }
 };
 
 // Auto-run if this file is executed directly

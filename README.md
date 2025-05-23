@@ -42,7 +42,6 @@ The application features a user-friendly form interface where users can:
 ### Backend (API Routes)
 
 - `/api/review/route.ts`: Main endpoint that processes review requests
-- `/api/detect-type/route.ts`: Helps determine the project type based on URL patterns
 
 ### Puppeteer Test Engine
 

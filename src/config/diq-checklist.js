@@ -1,11 +1,15 @@
 // Import dependencies
-import puppeteer from "puppeteer";
 import { config as dotenvConfig } from "dotenv";
 import { fileURLToPath } from "url";
 dotenvConfig();
 import { checkDIQHiddenFields } from "./checks/diq/checkDIQHiddenFields.js";
 import { checkDIQURL } from "./checks/diq/checkDIQURL.js";
 import { searchIndexOff } from "./checks/shared/searchIndexOff.js";
+import {
+  launchBrowser,
+  createPage,
+  closeBrowser,
+} from "@/app/utils/browserLauncher.js";
 
 // Define the main function that will be exported
 const runDIQChecklist = async () => {
@@ -28,74 +32,92 @@ const runDIQChecklist = async () => {
   }
 
   console.log("🚀 Running DIQ checklist...");
-  const browser = await puppeteer.launch({ headless: true });
-  const page = await browser.newPage();
 
-  const diqPagePatterns = [
-    "diq-landing-",
-    "diq-yes-",
-    "diq-probably-",
-    "diq-maybe-",
-    "diq-maybe-thanks-",
-    "diq-defer-",
-    "diq-defer-thanks-",
-    "diq-no-",
-    "diq-no-thanks-",
-    "diq-already-did-",
-    "diq-processing-yes-",
-    "diq-processing-probably-",
-    "diq-processing-maybe-",
-    "diq-processing-defer-",
-    "diq-processing-no-",
-    "diq-processing-already-did-",
-  ];
+  let browser = null;
 
-  // Construct full DIQ page URLs
-  let diqLinks = diqPagePatterns.map(
-    (pattern) => `${baseUrl}/${pattern}${diqTermSuffix}`
-  );
-
-  // Check if the diq-landing URL is valid
-  const diqLandingUrl = diqLinks.find((link) => link.includes("diq-landing-"));
   try {
-    await page.goto(diqLandingUrl, { waitUntil: "domcontentloaded" });
-    const statusCode = await page.evaluate(() => {
-      return document.body.innerText.includes("404") ? 404 : 200;
-    });
+    // Launch browser using the shared launcher
+    browser = await launchBrowser();
+    const page = await createPage(browser);
 
-    if (statusCode === 404) {
+    const diqPagePatterns = [
+      "diq-landing-",
+      "diq-yes-",
+      "diq-probably-",
+      "diq-maybe-",
+      "diq-maybe-thanks-",
+      "diq-defer-",
+      "diq-defer-thanks-",
+      "diq-no-",
+      "diq-no-thanks-",
+      "diq-already-did-",
+      "diq-processing-yes-",
+      "diq-processing-probably-",
+      "diq-processing-maybe-",
+      "diq-processing-defer-",
+      "diq-processing-no-",
+      "diq-processing-already-did-",
+    ];
+
+    // Construct full DIQ page URLs
+    let diqLinks = diqPagePatterns.map(
+      (pattern) => `${baseUrl}/${pattern}${diqTermSuffix}`
+    );
+
+    // Check if the diq-landing URL is valid
+    const diqLandingUrl = diqLinks.find((link) =>
+      link.includes("diq-landing-")
+    );
+    try {
+      await page.goto(diqLandingUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
+      const statusCode = await page.evaluate(() => {
+        return document.body.innerText.includes("404") ? 404 : 200;
+      });
+
+      if (statusCode === 404) {
+        console.error(
+          "❌ DIQ project not detected. The diq-landing page returned a 404 error."
+        );
+        process.exit(1);
+      }
+    } catch (error) {
       console.error(
-        "❌ DIQ project not detected. The diq-landing page returned a 404 error."
+        `❌ Error accessing diq-landing URL (${diqLandingUrl}):`,
+        error.message
       );
       process.exit(1);
     }
-  } catch (error) {
-    console.error(
-      `❌ Error accessing diq-landing URL (${diqLandingUrl}):`,
-      error.message
-    );
-    process.exit(1);
-  }
 
-  console.log(`Checked Base URL: ${baseUrl}\n\n### DIQ Page Verification\n`);
-  for (const link of diqLinks) {
-    try {
-      console.log(`\n===========================================`);
-      console.log(`Checking: ${link}`);
-      console.log(`===========================================\n`);
+    console.log(`Checked Base URL: ${baseUrl}\n\n### DIQ Page Verification\n`);
+    for (const link of diqLinks) {
+      try {
+        console.log(`\n===========================================`);
+        console.log(`Checking: ${link}`);
+        console.log(`===========================================\n`);
 
-      await page.goto(link, { waitUntil: "domcontentloaded" });
+        await page.goto(link, {
+          waitUntil: "domcontentloaded",
+          timeout: 30000,
+        });
 
-      await checkDIQHiddenFields(page, link);
-      await checkDIQURL(page, link);
-      await searchIndexOff(page, link);
-    } catch (error) {
-      console.error(`❌ Error accessing ${link}:`, error.message);
+        await checkDIQHiddenFields(page, link);
+        await checkDIQURL(page, link);
+        await searchIndexOff(page, link);
+      } catch (error) {
+        console.error(`❌ Error accessing ${link}:`, error.message);
+      }
     }
-  }
 
-  console.log("✅ DIQ checklist complete.");
-  await browser.close();
+    console.log("✅ DIQ checklist complete.");
+  } catch (error) {
+    console.error("❌ DIQ checklist failed:", error.message);
+    throw error;
+  } finally {
+    await closeBrowser(browser);
+  }
 };
 
 // Auto-run if this file is executed directly

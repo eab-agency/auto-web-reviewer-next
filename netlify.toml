@@ -1,16 +1,8 @@
-# Netlify configuration for Next.js with Puppeteer
+# Netlify configuration for Next.js
 [build]
   command = "npm run build"
   publish = ".next"
   
-[build.environment]
-  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
-  PUPPETEER_EXECUTABLE_PATH = "/usr/bin/chromium-browser"
-  NEXT_TELEMETRY_DISABLED = "1"
-
-[[plugins]]
-  package = "netlify-plugin-chromium"
-
 # Handle Next.js routing - for client-side navigation
 [[redirects]]
   from = "/*"
