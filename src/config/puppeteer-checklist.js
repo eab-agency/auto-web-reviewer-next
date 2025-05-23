@@ -1,16 +1,9 @@
 // Import dependencies
 import { exec } from "child_process";
 import dotenv from "dotenv";
-import path from "path";
 import { fileURLToPath } from "url";
-import { dirname } from "path";
-
 // Setup environment variables
 dotenv.config();
-
-// Helper for ESM __dirname equivalent
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // Use a function to allow importing this in the API
 export const runChecklist = (projectType, options = {}) => {
@@ -26,9 +19,9 @@ export const runChecklist = (projectType, options = {}) => {
 
     // Map project types to their respective script paths - using path.join for better cross-platform compatibility
     const scriptMap = {
-      SJ: path.join(__dirname, "sj-checklist.js"),
-      PS: path.join(__dirname, "ps-checklist.js"),
-      DIQ: path.join(__dirname, "diq-checklist.js"),
+      SJ: "./sj-checklist.js",
+      PS: "./ps-checklist.js",
+      DIQ: "./diq-checklist.js",
     };
 
     // Set environment variables for the scripts to use
