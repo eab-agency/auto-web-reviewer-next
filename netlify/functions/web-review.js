@@ -21,6 +21,8 @@ export async function handler(event) {
     };
   }
 
+  let browser = null;
+
   try {
     // Parse the request body
     const { acquiaUrl, currentProject, diqYear, diqTerm } = JSON.parse(
@@ -37,13 +39,10 @@ export async function handler(event) {
       };
     }
 
-    // Configure environment variables for the checklist scripts
-    const options = {
-      ACQUIA_URL: acquiaUrl,
-      CURRENT_PROJECT: currentProject,
-    };
+    // Set environment variables for the checklist scripts
+    process.env.ACQUIA_URL = acquiaUrl;
+    process.env.CURRENT_PROJECT = currentProject;
 
-    // Add DIQ-specific variables if applicable
     if (currentProject === "DIQ") {
       if (!diqYear || !diqTerm) {
         return {
@@ -53,66 +52,139 @@ export async function handler(event) {
           }),
         };
       }
-      options.DIQ_year = diqYear;
-      options.DIQ_term = diqTerm;
+      process.env.DIQ_year = diqYear;
+      process.env.DIQ_term = diqTerm;
     }
 
     // Launch the browser with Netlify-compatible settings
-    const browser = await puppeteer.launch({
-      args: chromium.args,
+    browser = await puppeteer.launch({
+      args: [
+        ...chromium.args,
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--single-process", // Add this to help with serverless environments
+      ],
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(
-        "/var/task/node_modules/@sparticuz/chromium/bin"
-      ),
+      executablePath: await chromium.executablePath(),
       headless: chromium.headless,
+      timeout: 60000, // Increase timeout for serverless environment
     });
 
-    // Create a new page
-    const page = await browser.newPage();
+    // Create a results object
+    let results = {
+      baseUrl: acquiaUrl,
+      projectType: currentProject,
+      checks: [],
+      errors: [],
+    };
 
-    // Set a user agent
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    );
+    // For SJ projects, check each page individually
+    if (currentProject === "SJ") {
+      // SJ pages to check
+      const pagePatterns = [
+        "apply",
+        "guide",
+        "guide-thanks",
+        "request",
+        "request-thanks",
+        "explore",
+        "not-ready",
+      ];
 
-    // Capture console logs from the page
-    let reviewResults = "";
-    page.on("console", (msg) => {
-      reviewResults += msg.text() + "\n";
-    });
+      // Create full URLs
+      const pageUrls = pagePatterns.map(
+        (pattern) => acquiaUrl.replace(/\/+$/, "") + "/" + pattern
+      );
 
-    // Navigate to the requested URL
-    await page.goto(acquiaUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: 30000,
-    });
+      // Check each page individually
+      for (const url of pageUrls) {
+        try {
+          // Create a new page for each URL to avoid frame detachment issues
+          const page = await browser.newPage();
 
-    // Perform checks based on project type
-    // This is a simplified version - you would import your actual checklist modules here
-    // or implement the checks directly
+          // Set a user agent
+          await page.setUserAgent(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+          );
 
-    // In a real implementation, you would do something like:
-    // if (currentProject === "SJ") {
-    //   await runSJChecks(page, options);
-    // } else if (currentProject === "PS") {
-    //   await runPSChecks(page, options);
-    // } else if (currentProject === "DIQ") {
-    //   await runDIQChecks(page, options);
-    // }
+          // Set longer timeouts to avoid timeouts in serverless environment
+          page.setDefaultNavigationTimeout(30000);
+          page.setDefaultTimeout(30000);
 
-    // Example simple check for demonstration
-    const title = await page.title();
-    reviewResults += `Checked URL: ${acquiaUrl}\nPage title: ${title}\n`;
+          // Capture console logs
+          page.on("console", (msg) => {
+            console.log(msg.text());
+          });
 
-    // Close the browser
-    await browser.close();
+          // Navigate to the URL
+          await page.goto(url, {
+            waitUntil: "domcontentloaded",
+            timeout: 30000,
+          });
+
+          // Basic checks - just as an example
+          const title = await page.title();
+          const hasMetaDescription = await page.evaluate(() => {
+            return !!document.querySelector('meta[name="description"]');
+          });
+
+          results.checks.push({
+            url,
+            title,
+            hasMetaDescription,
+            timestamp: new Date().toISOString(),
+          });
+
+          // Close the page when done to free up resources
+          await page.close();
+        } catch (error) {
+          results.errors.push({
+            url,
+            error: error.message,
+          });
+          console.error(`Error processing ${url}:`, error);
+        }
+      }
+    } else {
+      // For PS and DIQ projects, just check the main URL
+      try {
+        const page = await browser.newPage();
+        await page.setUserAgent(
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        );
+
+        page.setDefaultNavigationTimeout(30000);
+        page.setDefaultTimeout(30000);
+
+        await page.goto(acquiaUrl, {
+          waitUntil: "domcontentloaded",
+          timeout: 30000,
+        });
+
+        const title = await page.title();
+        results.checks.push({
+          url: acquiaUrl,
+          title,
+          timestamp: new Date().toISOString(),
+        });
+
+        await page.close();
+      } catch (error) {
+        results.errors.push({
+          url: acquiaUrl,
+          error: error.message,
+        });
+      }
+    }
 
     // Return the results
     return {
       statusCode: 200,
       body: JSON.stringify({
         message: "Review completed successfully",
-        reviewResults,
+        results,
       }),
     };
   } catch (error) {
@@ -124,5 +196,14 @@ export async function handler(event) {
         message: error.message,
       }),
     };
+  } finally {
+    // Make sure to close the browser
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.error("Error closing browser:", closeError);
+      }
+    }
   }
 }

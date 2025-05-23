@@ -6,7 +6,13 @@ export const launchBrowser = async (options = {}) => {
     process.env.NODE_ENV === "production" || process.env.NETLIFY;
 
   if (isProduction) {
-    // Production: Use @sparticuz/chromium
+    // Production: Use @sparticuz/chromium with optimized settings for serverless
+    console.log("Using production browser settings with @sparticuz/chromium");
+
+    // Ensure chromium settings for headless mode
+    chromium.setHeadlessMode = true;
+    chromium.setGraphicsMode = false;
+
     return await puppeteer.launch({
       args: [
         ...chromium.args,
@@ -14,14 +20,18 @@ export const launchBrowser = async (options = {}) => {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
+        "--single-process", // Help with serverless environments
       ],
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
+      ignoreHTTPSErrors: true, // Add this for SSL issues
+      timeout: 60000, // Increase timeout for serverless environments
       ...options,
     });
   } else {
     // Development: Use puppeteer-core with local Chrome
+    console.log("Using development browser settings with local Chrome");
 
     // Get the Chrome/Chromium executable path based on the operating system
     const executablePath = (() => {
@@ -68,6 +78,10 @@ export const launchBrowser = async (options = {}) => {
 
 export const createPage = async (browser, options = {}) => {
   const page = await browser.newPage();
+
+  // Set longer timeouts to avoid issues in serverless environments
+  page.setDefaultNavigationTimeout(30000);
+  page.setDefaultTimeout(30000);
 
   if (options.userAgent !== false) {
     await page.setUserAgent(
