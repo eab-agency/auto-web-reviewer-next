@@ -9,14 +9,16 @@ import { linksOpenInNewTab } from "./checks/sj/linksOpenInNewTab.js";
 import { checkGuideThanksPDF } from "./checks/sj/checkPDFStream.js";
 import { pagespeedCheck } from "./checks/shared/pageSpeedCheck.js";
 import { lazyVideoCheck } from "./checks/shared/lazyVideo.js";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
-(async () => {
+// Define the main function that will be exported
+const runSJChecklist = async () => {
   let baseUrl = process.env.ACQUIA_URL;
   if (!baseUrl) {
     console.error("❌ ACQUIA_URL is not defined in the .env file.");
-    process.exit(1);
+    throw new Error("ACQUIA_URL is not defined");
   }
 
   // Remove trailing /page-index if present
@@ -68,4 +70,17 @@ dotenv.config();
 
   console.log("✅ SJ checklist complete.");
   await browser.close();
-})();
+};
+
+// Auto-run if this file is executed directly
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  runSJChecklist()
+    .then(() => console.log("✅ SJ checklist execution complete"))
+    .catch((err) => {
+      console.error("❌ SJ checklist failed:", err.message);
+      process.exit(1);
+    });
+}
+
+// Export the function as default
+export default runSJChecklist;

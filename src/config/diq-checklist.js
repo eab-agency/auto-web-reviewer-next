@@ -1,16 +1,18 @@
 // Import dependencies
 import puppeteer from "puppeteer";
 import { config as dotenvConfig } from "dotenv";
+import { fileURLToPath } from "url";
 dotenvConfig();
 import { checkDIQHiddenFields } from "./checks/diq/checkDIQHiddenFields.js";
 import { checkDIQURL } from "./checks/diq/checkDIQURL.js";
 import { searchIndexOff } from "./checks/shared/searchIndexOff.js";
 
-(async () => {
+// Define the main function that will be exported
+const runDIQChecklist = async () => {
   let baseUrl = process.env.ACQUIA_URL;
   if (!baseUrl) {
     console.error("❌ ACQUIA_URL is not defined in the .env file.");
-    process.exit(1);
+    throw new Error("ACQUIA_URL is not defined");
   }
 
   // Remove trailing '/page-index' if present
@@ -94,4 +96,17 @@ import { searchIndexOff } from "./checks/shared/searchIndexOff.js";
 
   console.log("✅ DIQ checklist complete.");
   await browser.close();
-})();
+};
+
+// Auto-run if this file is executed directly
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  runDIQChecklist()
+    .then(() => console.log("✅ DIQ checklist execution complete"))
+    .catch((err) => {
+      console.error("❌ DIQ checklist failed:", err.message);
+      process.exit(1);
+    });
+}
+
+// Export the function as default
+export default runDIQChecklist;

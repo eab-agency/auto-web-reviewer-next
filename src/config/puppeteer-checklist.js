@@ -1,5 +1,4 @@
 // Import dependencies
-import { exec } from "child_process";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 // Setup environment variables
@@ -7,7 +6,7 @@ dotenv.config();
 
 // Use a function to allow importing this in the API
 export const runChecklist = (projectType, options = {}) => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     if (!projectType || !["SJ", "PS", "DIQ"].includes(projectType)) {
       reject(
         new Error("❌ Please provide a valid project type: SJ, PS, or DIQ.")
@@ -17,45 +16,72 @@ export const runChecklist = (projectType, options = {}) => {
 
     console.log(`🚀 Running checklist for project type: ${projectType}`);
 
-    // Map project types to their respective script paths - using path.join for better cross-platform compatibility
-    const scriptMap = {
-      SJ: "./sj-checklist.js",
-      PS: "./ps-checklist.js",
-      DIQ: "./diq-checklist.js",
-    };
-
     // Set environment variables for the scripts to use
     Object.entries(options).forEach(([key, value]) => {
       process.env[key] = value;
     });
 
-    // Execute the appropriate script using environment variables
-    exec(
-      `node "${scriptMap[projectType]}"`,
-      {
-        env: {
-          ...process.env,
-          ...options, // Allow passing environment variables
-        },
-      },
-      (error, stdout, stderr) => {
-        if (error) {
-          console.error(
-            `❌ Error executing ${projectType} checklist:`,
-            error.message
+    try {
+      // Instead of running as separate processes, import and run the modules directly
+      let stdout = "";
+      let stderr = "";
+
+      // Save original console.log and console.error
+      const originalConsoleLog = console.log;
+      const originalConsoleError = console.error;
+
+      // Override console.log to capture output
+      console.log = (...args) => {
+        const message = args.join(" ");
+        stdout += message + "\n";
+        originalConsoleLog.apply(console, args);
+      };
+
+      // Override console.error to capture errors
+      console.error = (...args) => {
+        const message = args.join(" ");
+        stderr += message + "\n";
+        originalConsoleError.apply(console, args);
+      };
+
+      // Dynamically import the appropriate module
+      try {
+        if (projectType === "SJ") {
+          const { default: runSJChecklist } = await import("./sj-checklist.js");
+          await runSJChecklist();
+        } else if (projectType === "PS") {
+          const { default: runPSChecklist } = await import("./ps-checklist.js");
+          await runPSChecklist();
+        } else if (projectType === "DIQ") {
+          const { default: runDIQChecklist } = await import(
+            "./diq-checklist.js"
           );
-          reject(error);
-          return;
+          await runDIQChecklist();
         }
 
-        if (stderr) {
-          console.error(`⚠️ Checklist warnings:`, stderr);
-        }
+        // Restore console functions
+        console.log = originalConsoleLog;
+        console.error = originalConsoleError;
 
-        console.log(stdout);
         resolve({ stdout, stderr });
+      } catch (error) {
+        // Restore console functions in case of error
+        console.log = originalConsoleLog;
+        console.error = originalConsoleError;
+
+        console.error(
+          `❌ Error importing or running ${projectType} checklist:`,
+          error.message
+        );
+        reject(error);
       }
-    );
+    } catch (error) {
+      console.error(
+        `❌ Error executing ${projectType} checklist:`,
+        error.message
+      );
+      reject(error);
+    }
   });
 };
 
