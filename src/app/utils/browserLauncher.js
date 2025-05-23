@@ -6,12 +6,7 @@ export const launchBrowser = async (options = {}) => {
     process.env.NODE_ENV === "production" || process.env.NETLIFY;
 
   if (isProduction) {
-    // Production: Use @sparticuz/chromium with optimized settings for serverless
     console.log("Using production browser settings with @sparticuz/chromium");
-
-    // Ensure chromium settings for headless mode
-    chromium.setHeadlessMode = true;
-    chromium.setGraphicsMode = false;
 
     return await puppeteer.launch({
       args: [
@@ -20,68 +15,61 @@ export const launchBrowser = async (options = {}) => {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
-        "--single-process", // Help with serverless environments
+        "--single-process",
+        "--no-zygote",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--memory-pressure-off", // Reduce memory pressure
+        "--max_old_space_size=512", // Limit memory usage
       ],
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
-      ignoreHTTPSErrors: true, // Add this for SSL issues
-      timeout: 60000, // Increase timeout for serverless environments
+      ignoreHTTPSErrors: true,
+      timeout: 60000,
       ...options,
     });
   } else {
-    // Development: Use puppeteer-core with local Chrome
-    console.log("Using development browser settings with local Chrome");
+    console.log("Using development browser settings");
 
-    // Get the Chrome/Chromium executable path based on the operating system
-    const executablePath = (() => {
-      // Check if path is provided in options
-      if (options.executablePath) return options.executablePath;
-
-      const platform = process.platform;
-
-      if (platform === "darwin") {
-        // macOS
-        return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-      } else if (platform === "win32") {
-        // Windows
-        return "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-      } else if (platform === "linux") {
-        // Linux
-        return "/usr/bin/google-chrome";
-      } else {
-        console.warn(
-          `Unsupported platform: ${platform}, Chrome executable path must be specified manually`
-        );
-        return null;
-      }
-    })();
-
-    if (!executablePath) {
-      throw new Error(
-        "Chrome executable not found. Please specify executablePath in options."
-      );
+    // Try to use regular puppeteer for development
+    try {
+      const puppeteerRegular = await import("puppeteer");
+      return await puppeteerRegular.default.launch({
+        headless: true,
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+        ],
+        ...options,
+      });
+    } catch {
+      // Fallback to @sparticuz/chromium
+      return await puppeteer.launch({
+        args: [
+          ...chromium.args,
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+        ],
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+        ...options,
+      });
     }
-
-    return await puppeteer.launch({
-      headless: true,
-      executablePath,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-      ],
-      ...options,
-    });
   }
 };
 
 export const createPage = async (browser, options = {}) => {
   const page = await browser.newPage();
 
-  // Set longer timeouts to avoid issues in serverless environments
-  page.setDefaultNavigationTimeout(30000);
-  page.setDefaultTimeout(30000);
+  // Set shorter timeouts to avoid function timeouts
+  page.setDefaultNavigationTimeout(25000);
+  page.setDefaultTimeout(25000);
 
   if (options.userAgent !== false) {
     await page.setUserAgent(

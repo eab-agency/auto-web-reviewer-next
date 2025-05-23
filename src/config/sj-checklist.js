@@ -35,7 +35,6 @@ const runSJChecklist = async () => {
   try {
     // Launch browser using the shared launcher
     browser = await launchBrowser();
-    const page = await createPage(browser);
 
     const sjPagePatterns = [
       "apply",
@@ -51,11 +50,16 @@ const runSJChecklist = async () => {
     let sjLinks = sjPagePatterns.map((pattern) => `${baseUrl}/${pattern}`);
 
     console.log(`Checked Base URL: ${baseUrl}\n\n### SJ Page Verification\n`);
+
     for (const link of sjLinks) {
+      let page = null;
       try {
         console.log(`\n===========================================`);
         console.log(`Checking: ${link}`);
         console.log(`===========================================\n`);
+
+        // Create a NEW page for each URL to avoid frame detachment
+        page = await createPage(browser);
 
         await page.goto(link, {
           waitUntil: "domcontentloaded",
@@ -72,6 +76,15 @@ const runSJChecklist = async () => {
         await pagespeedCheck(page, link);
       } catch (error) {
         console.error(`❌ Error accessing ${link}:`, error.message);
+      } finally {
+        // Close the page after each URL to free memory
+        if (page) {
+          try {
+            await page.close();
+          } catch (closeError) {
+            console.error(`Error closing page for ${link}:`, closeError);
+          }
+        }
       }
     }
 
