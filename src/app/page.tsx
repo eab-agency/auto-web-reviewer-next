@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const HomePage = () => {
   const [acquiaUrl, setAcquiaUrl] = useState("");
@@ -10,6 +10,70 @@ const HomePage = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState("");
   const [error, setError] = useState("");
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  // Parse URL parameters on component mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+
+      // Get 'url' parameter and set acquiaUrl if present
+      const urlParam = params.get("url");
+      if (urlParam) {
+        setAcquiaUrl(urlParam);
+      }
+
+      // Get 'type' parameter and set currentProject if present and valid
+      const typeParam = params.get("type");
+      if (typeParam && ["SJ", "PS", "DIQ"].includes(typeParam.toUpperCase())) {
+        setCurrentProject(typeParam.toUpperCase());
+      }
+
+      // Optional: Handle DIQ specific parameters if needed
+      const yearParam = params.get("year");
+      if (yearParam) {
+        setDiqYear(yearParam);
+      }
+
+      const termParam = params.get("term");
+      if (
+        termParam &&
+        ["fall", "spring", "summer"].includes(termParam.toLowerCase())
+      ) {
+        setDiqTerm(termParam.toLowerCase());
+      }
+    }
+  }, []);
+
+  // Generate a shareable URL with the current form values
+  const generateShareableUrl = () => {
+    if (typeof window === "undefined") return "";
+
+    const params = new URLSearchParams();
+
+    if (acquiaUrl) params.set("url", acquiaUrl);
+    if (currentProject) params.set("type", currentProject);
+    if (currentProject === "DIQ" && diqYear) params.set("year", diqYear);
+    if (currentProject === "DIQ" && diqTerm) params.set("term", diqTerm);
+
+    return `${window.location.origin}${
+      window.location.pathname
+    }?${params.toString()}`;
+  };
+
+  // Copy the shareable URL to clipboard
+  const copyShareableUrl = () => {
+    const url = generateShareableUrl();
+    navigator.clipboard.writeText(url).then(
+      () => {
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      },
+      () => {
+        alert("Failed to copy URL");
+      }
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +91,6 @@ const HomePage = () => {
       });
 
       const data = await response.json();
-      console.log("🚀 ~ handleSubmit ~ data:", data);
 
       if (!response.ok) {
         throw new Error(data.message || "Failed to complete review");
@@ -173,6 +236,33 @@ const HomePage = () => {
           </div>
         </div>
       )}
+
+      {/* Add a section showing how to create shareable links */}
+      <div className="mt-8 border-t pt-4">
+        <h2 className="text-lg font-semibold mb-2">Create Shareable Link</h2>
+        <div className="flex items-center mb-2">
+          <input
+            type="text"
+            readOnly
+            value={generateShareableUrl()}
+            className="flex-1 p-2 text-sm border rounded-l bg-gray-50"
+          />
+          <button
+            type="button"
+            onClick={copyShareableUrl}
+            className={`px-3 py-2 ${
+              copySuccess ? "bg-green-500" : "bg-blue-500"
+            } text-white rounded-r`}
+          >
+            {copySuccess ? "Copied!" : "Copy"}
+          </button>
+        </div>
+        <p className="text-sm text-gray-600">
+          Parameters: <code>url</code> (website URL), <code>type</code> (SJ, PS,
+          DIQ), <code>year</code> (for DIQ), <code>term</code> (fall, spring,
+          summer)
+        </p>
+      </div>
     </div>
   );
 };
