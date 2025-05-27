@@ -27,7 +27,10 @@ export async function POST(req: Request) {
       : [...chromium.args, "--hide-scrollbars", "--incognito", "--no-sandbox"],
     defaultViewport: viewport,
     executablePath:
-      process.env.CHROME_EXECUTABLE_PATH || (await chromium.executablePath()),
+      process.env.CHROME_EXECUTABLE_PATH ||
+      (await chromium.executablePath(
+        "https://tempbucket-chromium.s3.us-east-1.amazonaws.com/chromium-v133.0.0-pack.tar"
+      )),
     headless: "shell",
   });
 
