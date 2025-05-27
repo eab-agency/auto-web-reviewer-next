@@ -4,11 +4,14 @@ import chromium from "@sparticuz/chromium-min";
 chromium.setGraphicsMode = false;
 
 export async function POST(req: Request) {
-  const { url, currentProject } = await req.json();
+  const { acquiaUrl, currentProject, diqYear, diqTerm } = await req.json();
 
-  // Optional: Load any fonts you need.
-  await chromium.font(
-    "https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf"
+  console.log(
+    "🚀 ~ POST ~ acquiaUrl, currentProject, diqYear, diqTerm:",
+    acquiaUrl,
+    currentProject,
+    diqYear,
+    diqTerm
   );
 
   const isLocal = !!process.env.CHROME_EXECUTABLE_PATH;
@@ -35,13 +38,13 @@ export async function POST(req: Request) {
   });
 
   const page = await browser.newPage();
-  await page.goto("https://go.graduate.online.msstate.edu/page-index");
+  await page.goto(acquiaUrl);
   const pageTitle = await page.title();
   await browser.close();
 
   return Response.json({
     message: "Scraper endpoint is not yet implemented",
-    url,
+    reviewResults: acquiaUrl,
     currentProject,
     pageTitle,
   });

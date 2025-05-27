@@ -17,41 +17,33 @@ const HomePage = () => {
     setResults("");
     setError("");
 
-    const scraperResults = await fetch("/api/scraper", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ acquiaUrl, currentProject }),
-    }).then((res) => res.json());
-    console.log("🚀 ~ handleSubmit ~ scraperResults:", scraperResults);
+    try {
+      const response = await fetch("/api/review", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ acquiaUrl, currentProject, diqYear, diqTerm }),
+      });
 
-    // try {
-    //   const response = await fetch("/api/review", {
-    //     method: "POST",
-    //     headers: {
-    //       "Content-Type": "application/json",
-    //     },
-    //     body: JSON.stringify({ acquiaUrl, currentProject, diqYear, diqTerm }),
-    //   });
+      const data = await response.json();
+      console.log("🚀 ~ handleSubmit ~ data:", data);
 
-    //   const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to complete review");
+      }
 
-    //   if (!response.ok) {
-    //     throw new Error(data.message || "Failed to complete review");
-    //   }
-
-    //   setResults(
-    //     data.reviewResults ||
-    //       "Review completed successfully, but no results found."
-    //   );
-    // } catch (err) {
-    //   setError(
-    //     err instanceof Error ? err.message : "An unknown error occurred"
-    //   );
-    // } finally {
-    //   setLoading(false);
-    // }
+      setResults(
+        data.reviewResults ||
+          "Review completed successfully, but no results found."
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -2,66 +2,34 @@ import chromium from "@sparticuz/chromium-min";
 import puppeteer from "puppeteer-core";
 
 export const launchBrowser = async (options = {}) => {
-  const isProduction =
-    process.env.NODE_ENV === "production" || process.env.NETLIFY;
+  const isLocal = !!process.env.CHROME_EXECUTABLE_PATH;
 
-  if (isProduction) {
-    console.log("Using production browser settings with @sparticuz/chromium");
+  const viewport = {
+    deviceScaleFactor: 1,
+    hasTouch: false,
+    height: 1080,
+    isLandscape: true,
+    isMobile: false,
+    width: 1920,
+  };
+  const browser = await puppeteer.launch({
+    args: isLocal
+      ? puppeteer.defaultArgs()
+      : [...chromium.args, "--hide-scrollbars", "--incognito", "--no-sandbox"],
+    defaultViewport: viewport,
+    executablePath:
+      process.env.CHROME_EXECUTABLE_PATH ||
+      (await chromium.executablePath(
+        "https://tempbucket-chromium.s3.us-east-1.amazonaws.com/chromium-v133.0.0-pack.tar"
+      )),
+    headless: "shell",
+    ...options,
+  });
 
-    return await puppeteer.launch({
-      args: [
-        ...chromium.args,
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--single-process",
-        "--no-zygote",
-        "--disable-background-timer-throttling",
-        "--disable-backgrounding-occluded-windows",
-        "--disable-renderer-backgrounding",
-        "--memory-pressure-off", // Reduce memory pressure
-        "--max_old_space_size=512", // Limit memory usage
-      ],
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-      ignoreHTTPSErrors: true,
-      timeout: 60000,
-      ...options,
-    });
-  } else {
-    console.log("Using development browser settings");
-
-    // Try to use regular puppeteer for development
-    try {
-      const puppeteerRegular = await import("puppeteer");
-      return await puppeteerRegular.default.launch({
-        headless: true,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-        ],
-        ...options,
-      });
-    } catch {
-      // Fallback to @sparticuz/chromium
-      return await puppeteer.launch({
-        args: [
-          ...chromium.args,
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-gpu",
-        ],
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
-        ...options,
-      });
-    }
+  if (!browser) {
+    throw new Error("Failed to launch browser");
   }
+  return browser;
 };
 
 export const createPage = async (browser, options = {}) => {
