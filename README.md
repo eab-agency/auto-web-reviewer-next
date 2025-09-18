@@ -70,14 +70,12 @@ The core testing logic is organized into modular components:
 
 ## Getting Started
 
-First, run the development server:
+Install and then run the development server:
+
 
 ```bash
+yarn install
+
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
