@@ -5,7 +5,8 @@ import { useState, useEffect } from "react";
 const HomePage = () => {
   const [acquiaUrl, setAcquiaUrl] = useState("");
   const [currentProject, setCurrentProject] = useState("");
-  const [diqYear, setDiqYear] = useState("");
+  // Default DIQ year set to 2026; URL param (year) will override if provided
+  const [diqYear, setDiqYear] = useState("2026");
   const [diqTerm, setDiqTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState("");
