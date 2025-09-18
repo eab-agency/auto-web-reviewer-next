@@ -2,6 +2,8 @@
 
 An automated quality assurance tool for web projects. This application performs comprehensive checks on different types of web projects using Puppeteer for headless browser testing.
 
+test commit
+
 ## Overview
 
 Auto Web Reviewer is a Next.js web application designed to automate quality assurance checks on different types of web projects. It uses Puppeteer to run headless browser tests against specified websites, providing detailed reports on compliance with various quality standards and best practices.
